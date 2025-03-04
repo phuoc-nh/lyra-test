@@ -6,6 +6,7 @@ import { db } from "~/server/db";
 interface CreateBaseRequestBody {
 	name: string;
 }
+
 export async function POST(req: Request) {
 	try {
 		const session = await auth();
