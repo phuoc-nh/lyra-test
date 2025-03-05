@@ -15,11 +15,11 @@ export async function GET(req: Request) {
 		where: { id: tableId },
 		include: {
 			columns: true,
-			rows: {
-				include: {
-					cells: true,
-				},
-			},
+			// rows: {
+			// 	include: {
+			// 		cells: true,
+			// 	},
+			// },
 		},
 	});
 

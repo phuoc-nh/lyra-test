@@ -1,11 +1,16 @@
 'use client'
-import { getCoreRowModel, useReactTable, type ColumnDef } from '@tanstack/react-table';
+import { flexRender, getCoreRowModel, getSortedRowModel, type SortingState, useReactTable, type ColumnDef } from '@tanstack/react-table';
 import axios from 'axios';
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import TableDisplay from './table';
 import { Input } from '~/components/ui/input';
-import { Hash, Type } from 'lucide-react';
+import { ChevronDown, Hash, Plus, Type } from 'lucide-react';
 import debounce from 'lodash.debounce';
+import { api } from '~/trpc/react';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '~/components/ui/table';
+import { FieldPopover } from './add-field-popover';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Button } from '~/components/ui/button';
 
 interface Cell {
 	id: number;
@@ -39,25 +44,110 @@ interface Table {
 	rows: Row[];
 }
 
-export type Data = Record<string, { id: number, value: string | number, rowId: number, columnId: number }>;
+export type Data = Record<string, { id: number, value: string | number | null, rowId: number, columnId: number }>;
 
 export default function TableContainer({ tableId }: { tableId: string }) {
 	const [data, setData] = useState<Data[]>([]);
 	const [columns, setColumns] = useState<ColumnDef<Data>[]>([]);
+	const [sorting, setSorting] = React.useState<SortingState>([])
 
-	const handleCellChange = (cellId: number, columnId: number, value: string | number) => {
-		setData((prevData) => {
-			const newData = prevData.map((row) => {
-				if (row[columnId]?.id === cellId) {
-					return { ...row, [columnId]: { id: cellId, value: value } };
-				}
-				return row;
-			});
-			return newData;
-		});
+	const { data: tableData, fetchNextPage, hasNextPage, isFetchingNextPage } =
+		api.table.getPaginatedRows.useInfiniteQuery(
+			{
+				tableId,
+				limit: 50,
+			},
+			{
+				getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+			}
+		);
 
-		void debouncedUpdateCell(cellId, value);
-	};
+
+	const allRows = tableData?.pages.flatMap(page => page.rows) ?? [];
+	const table = useReactTable({
+		data: allRows,
+		columns,
+		getCoreRowModel: getCoreRowModel(),
+		getSortedRowModel: getSortedRowModel(),
+		debugTable: true,
+		onSortingChange: setSorting,
+	});
+
+	const { rows: rowsData } = table.getRowModel()
+
+	const parentRef = useRef<HTMLDivElement>(null);
+
+	const rowVirtualizer = useVirtualizer({
+		count: rowsData.length,
+		getScrollElement: () => parentRef.current,
+		estimateSize: () => 35,
+		overscan: 30,
+	});
+
+	React.useEffect(() => {
+		const virtualItems = rowVirtualizer.getVirtualItems();
+		if (virtualItems.length === 0) return;
+
+		const lastItem = virtualItems[virtualItems.length - 1]; // Get the last rendered item
+		if (!lastItem) return;
+
+		// Ensure fetching only triggers when the last item is actually in view
+		const isNearBottom =
+			lastItem.index >= allRows.length - 1 - 5; // Adjust threshold (5 means load when 5 items remain)
+
+		console.log('Virtualized Items:', lastItem.index);
+		console.log('Total Rows:', allRows.length);
+		if (isNearBottom && hasNextPage && !isFetchingNextPage) {
+			console.log('Fetching Next Page...');
+			// void fetchNextPage();
+		}
+	}, [
+		hasNextPage,
+		fetchNextPage,
+		allRows.length,
+		isFetchingNextPage,
+		rowVirtualizer.getVirtualItems(),
+	]);
+
+	// React.useEffect(() => {
+	// 	const [lastItem] = [...rowVirtualizer.getVirtualItems()].reverse()
+	// 	// console.log('rowVirtualizer', rowVirtualizer.getVirtualItems())
+	// 	// 	if (!lastItem) return;
+	// 	// console.log('allRows', allRows)
+
+	// 	if (!lastItem) {
+	// 		return
+	// 	}
+
+	// 	console.log('Virtualized Items:', rowVirtualizer.getVirtualItems());
+	// 	console.log('Total Rows:', allRows);
+	// 	// console.log('lastItem.index', lastItem.index)
+	// 	// console.log('hasNextPage', hasNextPage)
+	// 	// console.log('isFetchingNextPage', isFetchingNextPage)
+
+	// 	if (
+	// 		lastItem.index >= allRows.length - 1 &&
+	// 		hasNextPage &&
+	// 		!isFetchingNextPage
+	// 	) {
+	// 		console.log('Fetching Next Page')
+	// 		void fetchNextPage()
+	// 	}
+	// }, [
+	// 	hasNextPage,
+	// 	fetchNextPage,
+	// 	allRows.length,
+	// 	isFetchingNextPage,
+	// 	rowVirtualizer.getVirtualItems(),
+	// ])
+
+	const handleCellChange = debounce(async (cellId: number, columnId: number, value: string | number) => {
+		try {
+			await axios.put('/api/cells', { cellId, value });
+		} catch (error) {
+			console.error('Failed to update cell', error);
+		}
+	}, 300);
 
 	const debouncedUpdateCell = debounce(async (cellId: number, value: string | number) => {
 		try {
@@ -131,7 +221,7 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 		}
 	};
 
-	const fetchTable = async () => {
+	const fetchTableColumns = async () => {
 		try {
 			const response = await axios.get<Table>(`/api/tables`, {
 				params: {
@@ -162,19 +252,21 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 				}
 			}));
 
-			const rowData: Data[] = table.rows.map((row) => {
-				const rowData: Data = {};
-				row.cells.forEach((cell) => {
-					rowData[cell.columnId] = { id: cell.id, value: cell.value, rowId: row.id, columnId: cell.columnId };
-				});
-				return rowData;
-			});
-
-			console.log('RowData', rowData);
-			console.log('ColumnDefs', columnDefs);
-
+			// console.log('RowData', rowData);
 			setColumns(columnDefs);
-			setData(rowData);
+
+			// const rowData: Data[] = table.rows.map((row) => {
+			// 	const rowData: Data = {};
+			// 	row.cells.forEach((cell) => {
+			// 		rowData[cell.columnId] = { id: cell.id, value: cell.value, rowId: row.id, columnId: cell.columnId };
+			// 	});
+			// 	return rowData;
+			// });
+			// console.log('ColumnDefs', columnDefs);
+			// setData(rowData);
+
+
+
 
 		} catch (error) {
 			console.error('Failed to fetch table', error)
@@ -182,14 +274,156 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 	}
 
 	useEffect(() => {
-		void fetchTable()
+		void fetchTableColumns()
 	}, [tableId])
 
-	if (data.length === 0 || columns.length === 0) {
+
+
+	const cellWidth = 200; // Fixed width for each cell
+	const tableWidth = (columns.length + 1) * cellWidth; // Scale table width based on columns count
+
+	const divRef = useRef<HTMLDivElement>(null);
+	const [rows, setRows] = useState(0);
+
+	// useEffect(() => {
+	// 	if (divRef.current) {
+	// 		const tableHeight = data.length * 30 + 30;
+	// 		const remainingHeight = divRef.current.clientHeight - tableHeight;
+	// 		console.log('Remaining Height', remainingHeight);
+	// 		console.log('Table Height', tableHeight);
+	// 		if (remainingHeight < 0) {
+	// 			setRows(4);
+	// 			return;
+	// 		}
+	// 		const rows = Math.floor(remainingHeight / 30);
+	// 		setRows(rows - 1);
+	// 	}
+	// }, [data, columns]);
+
+	if (columns.length === 0) {
 		return null;
+
 	}
 
 	return (
-		<TableDisplay initialColumns={columns} initialData={data} addColumn={addColumn} addRow={addRow} />
+
+		<div ref={parentRef} className="overflow-x-auto bg-[#F7F7F7] flex flex-grow " style={{
+			height: `${rowVirtualizer.getTotalSize()}px`, width: '100%',
+			position: 'relative',
+		}}>
+			<Table className="border-collapse border border-gray-300 border-r-0 border-b-0 text-xs" style={{ width: tableWidth }}>
+				<TableHeader className="sticky top-0 bg-white">
+					{table.getHeaderGroups().map((headerGroup) => (
+						<TableRow key={headerGroup.id} className="hover:bg-transparent bg-gray-100 bg-red">
+							{headerGroup.headers.map((header) => (
+								<TableHead key={header.id} style={{ width: cellWidth }} className="h-8 border border-gray-300 ">
+									<div className="flex flex-row justify-between items-center">
+										{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+										<ChevronDown className="w-3" />
+									</div>
+								</TableHead>
+							))}
+							<TableHead style={{ width: cellWidth }} className="h-8 border border-gray-300">
+								<FieldPopover onCreateField={addColumn}>
+									<button className="flex items-center justify-center w-full h-full">
+										<Plus className="w-4 h-4 text-gray-400" />
+									</button>
+								</FieldPopover>
+							</TableHead>
+						</TableRow>
+					))}
+				</TableHeader>
+
+				<TableBody>
+					{/* {table.getRowModel().rows.map((row) => (
+						<TableRow key={row.id} className="hover:bg-gray-100 border-none">
+							{row.getVisibleCells().map((cell) => (
+								<TableCell key={cell.id} style={{ width: cellWidth }} className="h-[30px] p-0 border border-gray-300 bg-white ">
+									<div className="h-full flex items-center w-full">
+										{flexRender(cell.column.columnDef.cell, cell.getContext())}
+									</div>
+								</TableCell>
+							))}
+						</TableRow>
+					))} */}
+					{/* {rowVirtualizer.getVirtualItems().map((virtualRow, index) => {
+						const row = table.getRowModel().rows[virtualRow.index];
+						return (
+							<TableRow key={row?.id} className="hover:bg-gray-100 border-none">
+								{row?.getVisibleCells().map((cell) => (
+									// <TableCell key={cell.id} className="border border-gray-300">
+									// 	{flexRender(cell.column.columnDef.cell, cell.getContext())}
+									// </TableCell>
+									<TableCell key={cell.id} style={{ width: cellWidth }} className="h-[30px] p-0 border border-gray-300 bg-white ">
+										<div className="h-full flex items-center w-full">
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											<b>{index}</b>
+										</div>
+									</TableCell>
+								))}
+							</TableRow>
+						);
+					})} */}
+					{rowVirtualizer.getVirtualItems().map((virtualRow, index) => {
+						const row = rowsData[virtualRow.index]
+						return (
+							<TableRow key={row?.id} className="hover:bg-gray-100 border-none">
+								{row?.getVisibleCells().map((cell, id) => (
+									<TableCell key={cell.id} style={{ width: cellWidth }} className="h-[30px] p-0 border border-gray-300 bg-white ">
+										<div className="h-full flex items-center w-full">
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											<b>{index}</b>
+										</div>
+									</TableCell>
+								))}
+							</TableRow>
+						);
+					})}
+
+
+
+					<TableRow className="hover:bg-gray-100 border-none">
+						<TableCell colSpan={1} className="h-[30px] p-0 border border-gray-300 bg-white">
+							<div className="h-full px-4 flex items-center cursor-pointer" onClick={addRow}>
+								<Plus className="w-4 h-4 text-gray-400" />
+							</div>
+						</TableCell>
+						<TableCell colSpan={columns.length - 1} className="h-[30px] p-0 border border-gray-300 bg-white">
+						</TableCell>
+					</TableRow>
+
+
+					<TableRow className="hover:bg-gray-100 border-none">
+						<TableCell colSpan={1} rowSpan={rows} className="h-[30px] p-0 border border-gray-300 bg-white">
+						</TableCell>
+						<TableCell colSpan={columns.length - 1} className="h-[30px] ">
+						</TableCell>
+					</TableRow>
+					{Array.from({ length: rows - 1 }, (_, i) => (
+						<TableRow key={i} className="hover:bg-gray-100 border-none">
+							<TableCell colSpan={columns.length - 1} className="h-[30px]  ">
+							</TableCell>
+						</TableRow>
+					))}
+
+				</TableBody>
+				<TableFooter className="border-none sticky bottom-0 bg-white">
+					<TableRow className="hover:bg-gray-100 border-none">
+						<TableCell colSpan={1} className="h-[30px] p-0 border border-gray-300 bg-white">
+							<div className="h-full px-4 flex items-center">
+								Footer
+							</div>
+						</TableCell>
+						<TableCell colSpan={columns.length - 1} className="h-[30px] p-0 border border-gray-300 bg-white">
+						</TableCell>
+					</TableRow>
+					{hasNextPage && <Button onClick={() => fetchNextPage()} className="mt-2">Load More</Button>}
+
+				</TableFooter>
+			</Table>
+
+		</div>
+		// </div>
+
 	)
 }

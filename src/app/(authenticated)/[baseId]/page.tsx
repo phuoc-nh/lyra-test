@@ -28,7 +28,7 @@ export default async function page({ params }: { params: Params }) {
 		}));
 
 		// Generate random rows
-		const rows = Array.from({ length: 6 }, () => ({}));
+		const rows = Array.from({ length: 1000 }, () => ({}));
 
 		const newTable = await db.table.create({
 			data: {
