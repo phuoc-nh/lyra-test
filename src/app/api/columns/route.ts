@@ -18,30 +18,37 @@ export async function POST(req: Request) {
         type,
         tableId,
       },
+    });
+
+    // Create cells for each row in the table
+    const rows = await db.row.findMany({
+      where: {
+        tableId,
+      },
 	});
 	  
-	//   Create cells for each row in the table
-	const rows = await db.row.findMany({
-		where: {
-			tableId
-		}
-	})
-	  const cellPromises: unknown[] = []
-	  rows.forEach((row) => {
-		  cellPromises.push(db.cell.create({
-			  data: {
-				  value: '',
-				  columnId: newColumn.id,
-				  rowId: row.id
-			  }
-		  }))
-	  })
 
-	  const createdCells = await Promise.all(cellPromises)
-	  return NextResponse.json({
-		  column: newColumn,
-		  cells: createdCells
-	}, { status: 200 });
+    const cellsData = rows.map((row) => ({
+      value: '',
+      columnId: newColumn.id,
+      rowId: row.id,
+    }));
+
+    await db.cell.createMany({
+      data: cellsData,
+    });
+
+    // Fetch the created cells
+    const createdCells = await db.cell.findMany({
+      where: {
+        columnId: newColumn.id,
+      },
+    });
+
+    return NextResponse.json({
+      column: newColumn,
+      cells: createdCells,
+    }, { status: 200 });
   } catch (error) {
     console.error('Failed to add column', error);
     return NextResponse.json({ error: 'Failed to add column' }, { status: 500 });

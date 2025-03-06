@@ -47,11 +47,11 @@ interface Table {
 export type Data = Record<string, { id: number, value: string | number | null, rowId: number, columnId: number }>;
 
 export default function TableContainer({ tableId }: { tableId: string }) {
-	const [data, setData] = useState<Data[]>([]);
+	// const [data, setData] = useState<Data[]>([]);
 	const [columns, setColumns] = useState<ColumnDef<Data>[]>([]);
 	const [sorting, setSorting] = React.useState<SortingState>([])
 
-	const { data: tableData, fetchNextPage, hasNextPage, isFetchingNextPage } =
+	const { data: originData, fetchNextPage, hasNextPage, isFetchingNextPage } =
 		api.table.getPaginatedRows.useInfiniteQuery(
 			{
 				tableId,
@@ -63,9 +63,20 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 		);
 
 
-	const allRows = tableData?.pages.flatMap(page => page.rows) ?? [];
+	const [tableData, setTableData] = useState<Data[]>([]);
+
+	useEffect(() => {
+		if (originData) {
+			const flattenedData = originData.pages.flatMap((page) => page.rows) || [];
+			setTableData(flattenedData);
+		}
+	}, [originData]);
+
+
+	// const allRows = originData?.pages.flatMap(page => page.rows) ?? [];
+
 	const table = useReactTable({
-		data: allRows,
+		data: tableData,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
@@ -78,7 +89,7 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 	const parentRef = useRef<HTMLDivElement>(null);
 
 	const rowVirtualizer = useVirtualizer({
-		count: rowsData.length,
+		count: tableData.length,
 		getScrollElement: () => parentRef.current,
 		estimateSize: () => 35,
 		overscan: 30,
@@ -93,10 +104,8 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 
 		// Ensure fetching only triggers when the last item is actually in view
 		const isNearBottom =
-			lastItem.index >= allRows.length - 1 - 5; // Adjust threshold (5 means load when 5 items remain)
+			lastItem.index >= tableData.length - 1 - 5; // Adjust threshold (5 means load when 5 items remain)
 
-		console.log('Virtualized Items:', lastItem.index);
-		console.log('Total Rows:', allRows.length);
 		if (isNearBottom && hasNextPage && !isFetchingNextPage) {
 			console.log('Fetching Next Page...');
 			// void fetchNextPage();
@@ -104,64 +113,49 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 	}, [
 		hasNextPage,
 		fetchNextPage,
-		allRows.length,
+		tableData.length,
 		isFetchingNextPage,
 		rowVirtualizer.getVirtualItems(),
 	]);
 
-	// React.useEffect(() => {
-	// 	const [lastItem] = [...rowVirtualizer.getVirtualItems()].reverse()
-	// 	// console.log('rowVirtualizer', rowVirtualizer.getVirtualItems())
-	// 	// 	if (!lastItem) return;
-	// 	// console.log('allRows', allRows)
 
-	// 	if (!lastItem) {
-	// 		return
-	// 	}
+	const handleCellChange = (cellId: number, columnId: number, value: string | number) => {
 
-	// 	console.log('Virtualized Items:', rowVirtualizer.getVirtualItems());
-	// 	console.log('Total Rows:', allRows);
-	// 	// console.log('lastItem.index', lastItem.index)
-	// 	// console.log('hasNextPage', hasNextPage)
-	// 	// console.log('isFetchingNextPage', isFetchingNextPage)
+		setTableData((prevData) => {
+			const newData = [...prevData];
 
-	// 	if (
-	// 		lastItem.index >= allRows.length - 1 &&
-	// 		hasNextPage &&
-	// 		!isFetchingNextPage
-	// 	) {
-	// 		console.log('Fetching Next Page')
-	// 		void fetchNextPage()
-	// 	}
-	// }, [
-	// 	hasNextPage,
-	// 	fetchNextPage,
-	// 	allRows.length,
-	// 	isFetchingNextPage,
-	// 	rowVirtualizer.getVirtualItems(),
-	// ])
+			// Find the row that contains the cell
+			const rowIndex = newData.findIndex((row) => row[columnId]?.id === cellId);
+			if (rowIndex === -1) return prevData;
 
-	const handleCellChange = debounce(async (cellId: number, columnId: number, value: string | number) => {
-		try {
-			await axios.put('/api/cells', { cellId, value });
-		} catch (error) {
-			console.error('Failed to update cell', error);
-		}
-	}, 300);
+			// Update only the specific cell instead of recreating the entire row object
+			newData[rowIndex] = {
+				...newData[rowIndex],
+				[columnId]: { ...newData[rowIndex]?.[columnId], value },
+			};
 
-	const debouncedUpdateCell = debounce(async (cellId: number, value: string | number) => {
-		try {
-			await axios.put('/api/cells', { cellId, value });
-		} catch (error) {
-			console.error('Failed to update cell', error);
-		}
-	}, 300);
+			return newData;
+		});
+
+		void debouncedUpdateCell(cellId, value);
+	};
+
+	const debouncedUpdateCell = React.useCallback(
+		debounce(async (cellId: number, value: string | number) => {
+			try {
+				await axios.put('/api/cells', { cellId, value });
+			} catch (error) {
+				console.error('Failed to update cell', error);
+			}
+		}, 150),
+		[]
+	);
+
 
 	const addColumn = async (fieldName: string, fieldType: string) => {
 		try {
 			const response = await axios.post<{ column: Column, cells: Cell[] }>('/api/columns', { tableId, name: fieldName, type: fieldType });
 			const payload = response.data;
-			console.log('Payload', payload);
 
 			const newColumn = payload.column;
 			const newCells = payload.cells;
@@ -189,7 +183,9 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 
 			setColumns(prev => [...prev, newColumnDef]);
 
-			setData(prev => {
+			console.log('newCells', newCells);
+
+			setTableData(prev => {
 				const newData = prev.map(row => {
 					const rowId = Object.keys(row)[0]; // Dynamically get the first key
 					// @ts-ignore
@@ -214,7 +210,7 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 				newRow[cell.columnId] = { id: cell.id, value: cell.value, rowId: row.id, columnId: cell.columnId };
 			});
 
-			setData(prev => [...prev, newRow]);
+			setTableData(prev => [...prev, newRow]);
 
 		} catch (error) {
 			console.error('Failed to add row', error);
@@ -304,7 +300,6 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 		return null;
 
 	}
-
 	return (
 
 		<div ref={parentRef} className="overflow-x-auto bg-[#F7F7F7] flex flex-grow " style={{
@@ -372,7 +367,6 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 									<TableCell key={cell.id} style={{ width: cellWidth }} className="h-[30px] p-0 border border-gray-300 bg-white ">
 										<div className="h-full flex items-center w-full">
 											{flexRender(cell.column.columnDef.cell, cell.getContext())}
-											<b>{index}</b>
 										</div>
 									</TableCell>
 								))}
