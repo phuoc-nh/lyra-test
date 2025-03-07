@@ -1,5 +1,5 @@
 'use client'
-import { AlignJustify, Calendar, EyeOff, Filter, Grid, KanbanSquare, LayoutGrid, List, Plus, Search, SortAsc } from 'lucide-react'
+import { AlignJustify, Calendar, EyeOff, Filter, Grid, KanbanSquare, LayoutGrid, List, Plus, Search, SortAsc, WandSparkles } from 'lucide-react'
 import React, { useState } from 'react'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
@@ -9,6 +9,7 @@ import { cn } from '~/lib/utils'
 import { HideColsPopover } from './hide-col-popover'
 import { FilterPopover } from './filter-popover'
 import { SortPopover } from './sort-popover'
+import { SeedPopover } from './seed-popover'
 
 export default function TableView({ tableId }: { tableId: string }) {
 	const [displayViewTab, setDisplayViewTab] = useState(false)
@@ -51,16 +52,19 @@ export default function TableView({ tableId }: { tableId: string }) {
 								Sort
 							</Button>
 						</SortPopover>
-						{/* <Button variant="ghost" size="sm" className="gap-2">
-							<Search className="w-4 h-4" />
-							Find
-						</Button> */}
+
+						<SeedPopover>
+							<Button variant="ghost" size="sm" className="gap-2">
+								<WandSparkles className="w-4 h-4" />
+								Seed data
+							</Button>
+						</SeedPopover>
 					</div>
 				</div>
 			</div>
-			<div className='flex flex-row flex-grow h-ful'>
-				<div className="w-[280px] rounded-lg flex flex-col justify-between" style={{ display: displayViewTab ? '' : 'none' }}>
-					<div>
+			<div className='flex flex-row'>
+				<div className="w-[280px] rounded-lg flex flex-col " style={{ display: displayViewTab ? '' : 'none' }}>
+					<div className='mb-10'>
 						<div className="p-2">
 							<div className="relative">
 								<Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -109,42 +113,6 @@ export default function TableView({ tableId }: { tableId: string }) {
 									</div>
 									<Plus className="h-4 w-4" />
 								</Button>
-								{/* <Button variant="ghost" className="w-full justify-between">
-								<div className="flex items-center gap-2">
-									Timeline
-								</div>
-								<div className="flex items-center gap-2">
-
-									<Plus className="h-4 w-4" />
-								</div>
-							</Button>
-							<Button variant="ghost" className="w-full justify-between">
-								<div className="flex items-center gap-2">
-									<List className="h-4 w-4 text-blue-600" />
-									List
-								</div>
-								<Plus className="h-4 w-4" />
-							</Button>
-							<Button variant="ghost" className="w-full justify-between">
-								<div className="flex items-center gap-2">
-									Gantt
-								</div>
-								<div className="flex items-center gap-2">
-
-									<Plus className="h-4 w-4" />
-								</div>
-							</Button>
-							<Button variant="ghost" className="w-full justify-between">
-								<span>New section</span>
-								<div className="flex items-center gap-2">
-
-									<Plus className="h-4 w-4" />
-								</div>
-							</Button>
-							<Button variant="ghost" className="w-full justify-between">
-
-								<Plus className="h-4 w-4" />
-							</Button> */}
 							</div>
 						</div>
 					</div>

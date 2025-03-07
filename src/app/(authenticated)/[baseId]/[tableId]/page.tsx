@@ -132,29 +132,7 @@ export default async function page({ params }: { params: Promise<{ baseId: strin
 				</header>
 				<TableTabs createNewTable={createNewTable} tables={tables} curTable={tableId} baseId={baseId} />
 			</div>
-			{/* <div className="flex items-center h-10 px-2 border-b gap-2">
-				<div className="flex items-center">
-					<Button variant="ghost" size="sm" className="gap-2">
-						<AlignJustify className="w-4 h-4" />
-						Views
-					</Button>
-					<Separator orientation="vertical" className="mx-2 h-5" />
-					<div className="flex items-center gap-1">
-						<Button variant="ghost" size="sm" className="gap-2">
-							<Filter className="w-4 h-4" />
-							Filter
-						</Button>
-						<Button variant="ghost" size="sm" className="gap-2">
-							<SortAsc className="w-4 h-4" />
-							Sort
-						</Button>
-						<Button variant="ghost" size="sm" className="gap-2">
-							<Search className="w-4 h-4" />
-							Find
-						</Button>
-					</div>
-				</div>
-			</div> */}
+
 			<TableView
 				tableId={tableId}
 			></TableView>
