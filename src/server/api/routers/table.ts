@@ -6,35 +6,9 @@ import {
 	publicProcedure,
 } from "~/server/api/trpc";
 export type Data = Record<string, { id: number, value: string | number | null, rowId: number, columnId: number }>;
+import { faker } from '@faker-js/faker';
 
 export const tableRouter = createTRPCRouter({
-	//   hello: publicProcedure
-	//     .input(z.object({ text: z.string() }))
-	//     .query(({ input }) => {
-	//       return {
-	//         greeting: `Hello ${input.text}`,
-	//       };
-	//     }),
-
-	// create: protectedProcedure
-	// 	.input(z.object({ name: z.string().min(1) }))
-	// 	.mutation(async ({ ctx, input }) => {
-	// 		return ctx.db.post.create({
-	// 			data: {
-	// 				name: input.name,
-	// 				createdBy: { connect: { id: ctx.session.user.id } },
-	// 			},
-	// 		});
-	// 	}),
-
-	//   getLatest: protectedProcedure.query(async ({ ctx }) => {
-	//     const post = await ctx.db.post.findFirst({
-	//       orderBy: { createdAt: "desc" },
-	//       where: { createdBy: { id: ctx.session.user.id } },
-	//     });
-
-	//     return post ?? null;
-	//   }),
 
 	getPaginatedRows: protectedProcedure.input(z.object({
 		tableId: z.string(),
@@ -76,6 +50,57 @@ export const tableRouter = createTRPCRouter({
 			nextCursor,
 		};
 	}),
+
+	seedData: protectedProcedure.input(z.object({
+		tableId: z.string(),
+		rows: z.number().min(1).default(10),
+		columns: z.number().min(1).default(5),
+	})).mutation(async ({ input, ctx }) => {
+		const { tableId, rows, columns } = input;
+
+		// remove all current rows and columns
+		await ctx.db.row.deleteMany({ where: { tableId } });
+		await ctx.db.column.deleteMany({ where: { tableId } });
+		
+
+		// Create rows
+		const createdRows = await ctx.db.row.createManyAndReturn({
+			data: Array.from({ length: rows }).map(() => ({
+				tableId,
+			}),
+			),
+		});
+		// use faker to generate random column name
+		
+		// Create columns
+		const createdColumns = await ctx.db.column.createManyAndReturn({
+			data: Array.from({ length: columns }).map(() => ({
+				tableId,
+				name: faker.food.fruit(),
+				type: "text",
+			}),
+			),
+		});
+
+		// Create cells
+		const cellsData = createdRows.flatMap((row) =>
+			createdColumns.map((column) => ({
+				value: faker.word.words({count: 1}),
+				columnId: column.id,
+				rowId: row.id,
+			}),
+			),
+		);
+
+		const createdCells = await ctx.db.cell.createManyAndReturn({
+			data: cellsData,
+		});
+
+		return {
+			success: true,
+		};
+	}),
+		
 
 });
 

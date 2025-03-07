@@ -46,12 +46,12 @@ interface Table {
 
 export type Data = Record<string, { id: number, value: string | number | null, rowId: number, columnId: number }>;
 
-export default function TableContainer({ tableId }: { tableId: string }) {
+export default function TableContainer({ tableId, shouldRefetch }: { tableId: string, shouldRefetch?: boolean }) {
 	// const [data, setData] = useState<Data[]>([]);
 	const [columns, setColumns] = useState<ColumnDef<Data>[]>([]);
 	const [sorting, setSorting] = React.useState<SortingState>([])
 
-	const { data: originData, fetchNextPage, hasNextPage, isFetchingNextPage } =
+	const { data: originData, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
 		api.table.getPaginatedRows.useInfiniteQuery(
 			{
 				tableId,
@@ -73,8 +73,18 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 	}, [originData]);
 
 
-	// const allRows = originData?.pages.flatMap(page => page.rows) ?? [];
+	useEffect(() => {
+		// if (shouldRefetch) {
+		void refetch();
+		setTableData([]);
+		setColumns([]);
+		// set
+		// }
+	}, [shouldRefetch]);
 
+
+	// const allRows = originData?.pages.flatMap(page => page.rows) ?? [];
+	console.log('TableData', tableData);
 	const table = useReactTable({
 		data: tableData,
 		columns,
@@ -248,7 +258,7 @@ export default function TableContainer({ tableId }: { tableId: string }) {
 				}
 			}));
 
-			// console.log('RowData', rowData);
+			console.log('RowData', table.columns);
 			setColumns(columnDefs);
 
 			// const rowData: Data[] = table.rows.map((row) => {

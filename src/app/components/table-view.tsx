@@ -13,6 +13,8 @@ import { SeedPopover } from './seed-popover'
 
 export default function TableView({ tableId }: { tableId: string }) {
 	const [displayViewTab, setDisplayViewTab] = useState(false)
+	const [shouldRefetch, setShouldRefetch] = useState(false)
+	const [renderKey, setRenderKey] = useState(0);
 
 	return (
 		<>
@@ -53,7 +55,7 @@ export default function TableView({ tableId }: { tableId: string }) {
 							</Button>
 						</SortPopover>
 
-						<SeedPopover>
+						<SeedPopover tableId={tableId} setShouldRefetch={setShouldRefetch} setRenderKey={setRenderKey}>
 							<Button variant="ghost" size="sm" className="gap-2">
 								<WandSparkles className="w-4 h-4" />
 								Seed data
@@ -118,7 +120,9 @@ export default function TableView({ tableId }: { tableId: string }) {
 					</div>
 				</div>
 				<TableContainer
+					key={renderKey}
 					tableId={tableId}
+					shouldRefetch={shouldRefetch}
 				></TableContainer>
 			</div>
 		</>

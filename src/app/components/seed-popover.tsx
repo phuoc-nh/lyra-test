@@ -1,18 +1,17 @@
 "use client"
 
 import * as React from "react"
-import { Type, ChevronRight, Hash, ChevronDown, Plus, HelpCircle, Bell, MoreHorizontal, User, Clock, Trash2, X, Check, Loader2 } from "lucide-react"
+import { Check, Loader2 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover"
 import { Button } from "~/components/ui/button"
 import { Input } from "~/components/ui/input"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command"
-import { Switch } from "~/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { api } from "~/trpc/react"
+import { useRouter } from "next/navigation"
 
 const formSchema = z.object({
   rows: z.coerce.number().int().positive().min(1, {
@@ -24,11 +23,18 @@ const formSchema = z.object({
 })
 type FormValues = z.infer<typeof formSchema>
 
-export function SeedPopover({ children }: { children: React.ReactNode }) {
+type SeedPopoverProps = {
+  tableId: string,
+  children: React.ReactNode,
+  setShouldRefetch: React.Dispatch<React.SetStateAction<boolean>>,
+  setRenderKey: React.Dispatch<React.SetStateAction<number>>,
+}
+
+export function SeedPopover({ tableId, children, setShouldRefetch, setRenderKey }: SeedPopoverProps) {
   const [open, setOpen] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSuccess, setIsSuccess] = React.useState(false)
-
+  const router = useRouter()
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -38,20 +44,27 @@ export function SeedPopover({ children }: { children: React.ReactNode }) {
     },
   })
 
+  const seedDataMutation = api.table.seedData.useMutation()
+
   async function onSubmit(data: FormValues) {
     setIsLoading(true)
     setIsSuccess(false)
 
     try {
-      // Simulate API call for seeding data
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      console.log("Seeding data with:", data)
-      // Here you would typically call your actual seeding function
-      // await seedDatabase(data.rows, data.columns)
+      await seedDataMutation.mutateAsync({
+        tableId,
+        rows: data.rows,
+        columns: data.columns,
+      })
 
       setIsSuccess(true)
       toast("Data seeded successfully")
+      setShouldRefetch((prev: boolean) => !prev) // Set shouldRefetch to true to trigger data refetch
+      router.refresh() // Refresh the current page to fetch new table data
+
+      setRenderKey((prev: number) => prev + 1);
+      resetDialog()
+      setOpen(false)
     } catch (error) {
       toast("Error seeding data")
     } finally {
