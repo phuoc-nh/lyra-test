@@ -11,10 +11,9 @@ import { FilterPopover } from './filter-popover'
 import { SortPopover } from './sort-popover'
 import { SeedPopover } from './seed-popover'
 
-export default function TableView({ tableId }: { tableId: string }) {
+export default function TableView({ tableId, viewId }: { tableId: string, viewId: number }) {
 	const [displayViewTab, setDisplayViewTab] = useState(false)
 	const [shouldRefetch, setShouldRefetch] = useState(false)
-	const [renderKey, setRenderKey] = useState(0);
 
 	return (
 		<>
@@ -36,11 +35,9 @@ export default function TableView({ tableId }: { tableId: string }) {
 								<EyeOff className="w-4 h-4" />
 								Hide fields
 							</Button>
-
 						</HideColsPopover>
 
-						<FilterPopover>
-
+						<FilterPopover tableId={tableId} viewId={viewId} >
 							<Button variant="ghost" size="sm" className="gap-2">
 								<Filter className="w-4 h-4" />
 								Filter
@@ -48,14 +45,13 @@ export default function TableView({ tableId }: { tableId: string }) {
 						</FilterPopover>
 
 						<SortPopover>
-
 							<Button variant="ghost" size="sm" className="gap-2">
 								<SortAsc className="w-4 h-4" />
 								Sort
 							</Button>
 						</SortPopover>
 
-						<SeedPopover tableId={tableId} setShouldRefetch={setShouldRefetch} setRenderKey={setRenderKey}>
+						<SeedPopover tableId={tableId} setShouldRefetch={setShouldRefetch}>
 							<Button variant="ghost" size="sm" className="gap-2">
 								<WandSparkles className="w-4 h-4" />
 								Seed data
@@ -120,9 +116,9 @@ export default function TableView({ tableId }: { tableId: string }) {
 					</div>
 				</div>
 				<TableContainer
-					key={renderKey}
 					tableId={tableId}
 					shouldRefetch={shouldRefetch}
+					viewId={viewId}
 				></TableContainer>
 			</div>
 		</>

@@ -17,8 +17,18 @@ export default async function page({ params }: { params: Params }) {
 	const firstTable = await db.table.findFirst({
 		where: {
 			baseId: baseId
+		},
+		include: {
+			View: {
+				take: 1,
+				orderBy: {
+					createdAt: 'asc' // or 'desc' depending on your requirement
+				},
+			}
 		}
 	})
+
+
 
 	if (count == 0 || !firstTable) {
 		// Generate random columns
@@ -45,7 +55,6 @@ export default async function page({ params }: { params: Params }) {
 		});
 
 		const cells: Cell[] = []
-		console.log('newTable', newTable)
 		newTable.columns.forEach((column) => {
 			newTable.rows.forEach((row) => {
 				// @ts-ignore
@@ -61,18 +70,24 @@ export default async function page({ params }: { params: Params }) {
 		await db.cell.createMany({
 			data: cells
 		})
-
-		redirect(`/${baseId}/${newTable.id}`)
+		const view = await db.view.create({
+			data: {
+				name: 'Grid view',
+				tableId: newTable.id,
+				filters: {},
+				sort: {},
+				hiddenCols: [],
+			}
+		});
+		redirect(`/${baseId}/${newTable.id}/${view.id}`)
 	}
 
-
 	// redirect to the first table
-	redirect(`/${baseId}/${firstTable.id}`)
+	redirect(`/${baseId}/${firstTable.id}/${firstTable.View[0]?.id}`)
 
 
 	return (
 		<div className='flex flex-col h-full'>
 		</div>
-
 	)
 }

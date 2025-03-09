@@ -9,8 +9,8 @@ import { db } from '~/server/db'
 import { faker } from '@faker-js/faker';
 import { type Cell } from '@prisma/client'
 import TableView from '~/app/components/table-view'
-export default async function page({ params }: { params: Promise<{ baseId: string, tableId: string }> }) {
-	const { baseId, tableId } = await params;
+export default async function page({ params }: { params: Promise<{ baseId: string, tableId: string, viewId: string }> }) {
+	const { baseId, tableId, viewId } = await params;
 	const tables = await db.table.findMany({
 		where: {
 			baseId: baseId
@@ -81,21 +81,11 @@ export default async function page({ params }: { params: Promise<{ baseId: strin
 		where: {
 			id: tableId
 		},
-		include: {
-			View: {
-				take: 1,
-				orderBy: {
-					createdAt: 'asc' // or 'desc' depending on your requirement
-				},
-			}
-		}
 	});
 
 	if (!table) {
 		redirect(`/${baseId}`)
 	}
-
-	const viewId = table.View[0]?.id;
 
 
 	if (!viewId) {
@@ -103,6 +93,8 @@ export default async function page({ params }: { params: Promise<{ baseId: strin
 		throw new Error('No view found')
 	}
 	// viewId = view
+
+	console.log('viewId', viewId)
 
 	return (
 		<div className='flex flex-col h-full'>
@@ -155,7 +147,7 @@ export default async function page({ params }: { params: Promise<{ baseId: strin
 
 			<TableView
 				tableId={tableId}
-				viewId={viewId}
+				viewId={parseInt(viewId)}
 			></TableView>
 		</div>
 

@@ -46,7 +46,7 @@ interface Table {
 
 export type Data = Record<string, { id: number, value: string | number | null, rowId: number, columnId: number }>;
 
-export default function TableContainer({ tableId, shouldRefetch }: { tableId: string, shouldRefetch?: boolean }) {
+export default function TableContainer({ tableId, shouldRefetch, viewId }: { tableId: string, shouldRefetch?: boolean, viewId: number }) {
 	// const [data, setData] = useState<Data[]>([]);
 	const [columns, setColumns] = useState<ColumnDef<Data>[]>([]);
 	const [sorting, setSorting] = React.useState<SortingState>([])
@@ -56,6 +56,7 @@ export default function TableContainer({ tableId, shouldRefetch }: { tableId: st
 			{
 				tableId,
 				limit: 50,
+				viewId: viewId,
 			},
 			{
 				getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
@@ -84,7 +85,7 @@ export default function TableContainer({ tableId, shouldRefetch }: { tableId: st
 
 
 	// const allRows = originData?.pages.flatMap(page => page.rows) ?? [];
-	console.log('TableData', tableData);
+	// console.log('TableData', tableData);
 	const table = useReactTable({
 		data: tableData,
 		columns,

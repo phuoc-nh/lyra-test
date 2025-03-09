@@ -27,10 +27,9 @@ type SeedPopoverProps = {
   tableId: string,
   children: React.ReactNode,
   setShouldRefetch: React.Dispatch<React.SetStateAction<boolean>>,
-  setRenderKey: React.Dispatch<React.SetStateAction<number>>,
 }
 
-export function SeedPopover({ tableId, children, setShouldRefetch, setRenderKey }: SeedPopoverProps) {
+export function SeedPopover({ tableId, children, setShouldRefetch }: SeedPopoverProps) {
   const [open, setOpen] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [isSuccess, setIsSuccess] = React.useState(false)
@@ -61,8 +60,6 @@ export function SeedPopover({ tableId, children, setShouldRefetch, setRenderKey 
       toast("Data seeded successfully")
       setShouldRefetch((prev: boolean) => !prev) // Set shouldRefetch to true to trigger data refetch
       router.refresh() // Refresh the current page to fetch new table data
-
-      setRenderKey((prev: number) => prev + 1);
       resetDialog()
       setOpen(false)
     } catch (error) {

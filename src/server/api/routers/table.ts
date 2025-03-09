@@ -9,23 +9,90 @@ export type Data = Record<string, { id: number, value: string | number | null, r
 import { faker } from '@faker-js/faker';
 
 export const tableRouter = createTRPCRouter({
+	//   hello: publicProcedure
+	//     .input(z.object({ text: z.string() }))
+	//     .query(({ input }) => {
+	//       return {
+	//         greeting: `Hello ${input.text}`,
+	//       };
+	//     }),
+
+	// create: protectedProcedure
+	// 	.input(z.object({ name: z.string().min(1) }))
+	// 	.mutation(async ({ ctx, input }) => {
+	// 		return ctx.db.post.create({
+	// 			data: {
+	// 				name: input.name,
+	// 				createdBy: { connect: { id: ctx.session.user.id } },
+	// 			},
+	// 		});
+	// 	}),
+
+	//   getLatest: protectedProcedure.query(async ({ ctx }) => {
+	//     const post = await ctx.db.post.findFirst({
+	//       orderBy: { createdAt: "desc" },
+	//       where: { createdBy: { id: ctx.session.user.id } },
+	//     });
+
+	//     return post ?? null;
+	//   }),
 
 	getPaginatedRows: protectedProcedure.input(z.object({
 		tableId: z.string(),
 		cursor: z.number().nullish(),
 		limit: z.number().min(1).max(100).default(100),
+		viewId: z.number().nullish(),
+		filter: z.string().optional(), // Add 
 	})).query(async ({ input, ctx }) => {
-		const { tableId, cursor, limit } = input;
+		const { tableId, cursor, limit, viewId, filter } = input;
+
+		// const view = await ctx.db.view.findUnique({
+		// 	where: { id: parseInt(viewId) },
+		//   });
+	  
+		//   let whereConditions = {};
+		  
+		// 	// Apply search filter
+		//   if (view?.search) {
+		// 	whereConditions.cells = {
+		// 	  some: {
+		// 		value: { contains: view.search, mode: "insensitive" },
+		// 	  },
+		// 	};
+		//   }
+	  
+		// ? {
+		// 	cells: {
+		// 		some: {
+		// 			value: {
+		// 				NOT: {
+		// 					contains: exclude,
+		// 					mode: 'insensitive', // Optional: case-insensitive search
+		// 				},
+		// 			},
+		// 		},
+		// 	},
+		// }
 
 		const rows = await ctx.db.row.findMany({
-			where: { tableId },
+			where: { 
+				tableId: tableId,
+				cells: filter ? {
+					some: {
+						value: {
+							contains: filter,
+							mode: 'insensitive', // Optional: case-insensitive search
+						},
+					},
+				} : undefined,
+			 },
 			take: limit + 1,
 			cursor: cursor ? { id: cursor } : undefined,
 			include: {
 				cells: true,
+				
 			},
 			orderBy: { id: "asc" },
-			// orderBy: { createdAt: "desc" },
 
 		});
 		// console.log('rows >>>> ', rows);
@@ -35,7 +102,7 @@ export const tableRouter = createTRPCRouter({
 			// console.log('nextItem >>>> ', nextItem);
 			nextCursor = nextItem!.id;
 		}
-
+console.log('rows.map >>>> ', rows);
 		const rowData = rows.map((row) => {
 			const rowData: Data = {};
 			row.cells.forEach((cell) => {
@@ -43,6 +110,54 @@ export const tableRouter = createTRPCRouter({
 			});
 			return rowData;
 		});
+
+		// console.log('rowData >>>> ', rowData);
+
+		
+		//   // Apply column filters
+		//   if (view?.filters) {
+		// 	whereConditions.cells = {
+		// 	  some: {
+		// 		OR: view.filters.map(filter => ({
+		// 		  columnId: filter.columnId,
+		// 		  value:
+		// 			filter.operator === ">"
+		// 			  ? { gt: filter.value }
+		// 			  : filter.operator === "<"
+		// 			  ? { lt: filter.value }
+		// 			  : filter.operator === "="
+		// 			  ? { equals: filter.value }
+		// 			  : filter.operator === "contains"
+		// 			  ? { contains: filter.value }
+		// 			  : undefined,
+		// 		})),
+		// 	  },
+		// 	};
+		//   }
+	  
+		//   // Fetch table with filters, sorting, and hidden columns applied
+		//   const table = await prisma.table.findUnique({
+		// 	where: { id: parseInt(tableId) },
+		// 	include: {
+		// 	  columns: {
+		// 		where: {
+		// 		  id: { notIn: view?.hiddenCols || [] },
+		// 		},
+		// 	  },
+		// 	  rows: {
+		// 		where: whereConditions,
+		// 		include: {
+		// 		  cells: true,
+		// 		},
+		// 		orderBy: view?.sort?.map(s => ({
+		// 		  cells: {
+		// 			columnId: s.columnId,
+		// 			value: s.direction,
+		// 		  },
+		// 		})),
+		// 	  },
+		// 	},
+		//   });
 		
 
 		return {

@@ -8,6 +8,7 @@ import { Input } from "~/components/ui/input"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "~/components/ui/command"
 import { Switch } from "~/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select"
+import axios from "axios"
 
 interface FieldType {
   id: string;
@@ -28,18 +29,31 @@ const fieldTypes: FieldType[] = [
   },
 ]
 
-export function FilterPopover({ children }: { children: React.ReactNode }) {
+export function FilterPopover({ children, tableId, viewId }: { children: React.ReactNode, tableId: string, viewId: number }) {
   const [open, setOpen] = React.useState(false)
   const [fieldName, setFieldName] = React.useState("")
   const [selectedFieldType, setSelectedFieldType] = React.useState<string | null>(null)
 
-  // fetch columns from table to show in the popover
+  const [columns, setColumns] = React.useState<[]>([])
+
   // React.useEffect(() => {
-  //   if (!open) {
-  //     setFieldName("")
-  //     setSelectedFieldType(null)
+  //   const fetchTableColumns = async () => {
+  //     try {
+  //       const response = await axios.get<any>(`/api/tables`, {
+  //         params: {
+  //           tableId: tableId
+  //         }
+  //       });
+
+  //       const table = response.data;
+
+  //     } catch (error) {
+  //       console.error('Failed to fetch table', error)
+  //     }
   //   }
-  // }, [open])
+  // }, [])
+
+
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
